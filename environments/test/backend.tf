@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket         = "pretzel-shop-tfstate-bucket"
+    bucket         = "pretzel-shop-tfstate-bucket1"
     key            = "test/terraform.tfstate"
     encrypt = true
     endpoints = {
