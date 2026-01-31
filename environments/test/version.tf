@@ -8,6 +8,4 @@ terraform {
   }
 }
 
-provider "digitalocean" {
-  token = var.digitalocean_token
-}
+provider "digitalocean" {}
