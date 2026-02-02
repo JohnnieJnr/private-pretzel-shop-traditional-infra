@@ -1,7 +1,3 @@
-locals {
-  environment = "staging"
-}
-
 resource "digitalocean_project" "this" {
   name = "${var.project_name}-${local.environment}"
   purpose = "Other"

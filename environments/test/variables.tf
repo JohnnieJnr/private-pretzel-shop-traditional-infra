@@ -14,3 +14,14 @@ variable "common_tags" {
   Team        = "devops"
   }
 }
+
+variable "ghcr_credentials" {
+  description = "Credentials for GHCR (GitHub Container Registry). Credentials should be in the format 'username:token'."
+  type        = string
+  sensitive = true
+
+  validation {
+    condition     = can(regex("^[a-z0-9_]+:(github_pat_|ghp_)[A-Za-z0-9_]+$", var.ghcr_credentials))
+    error_message = "GHCR credentials must be in the format 'username:github_pat_<token>', where username is lowercase letters, numbers, or underscores, and token starts with 'github_pat_' or 'ghp_' followed by letters, numbers, or underscores."
+  }
+}
