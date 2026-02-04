@@ -19,6 +19,7 @@ jobs:
     runs-on: "ubuntu-latest"
     environment: "${{ inputs.environment }}"
     env:
+      DIGITALOCEAN_TOKEN: "${{ secrets.DIGITALOCEAN_TOKEN }}"
       TF_VAR_digitalocean_token: "${{ secrets.DIGITALOCEAN_TOKEN }}"
       TF_VAR_ghcr_credentials: "${{ secrets.GHCR_CREDENTIALS }}"
       SPACES_ACCESS_KEY_ID: "${{ secrets.SPACES_ACCESS_KEY_ID }}"
@@ -44,6 +45,10 @@ jobs:
         run: |
           if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ -z "${AWS_SECRET_ACCESS_KEY}" ]; then
             echo "Missing AWS credentials for the S3 backend. Ensure SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY are set as secrets for the selected environment."
+            exit 1
+          fi
+          if [ -z "${DIGITALOCEAN_TOKEN}" ]; then
+            echo "Missing DIGITALOCEAN_TOKEN. Ensure the secret is set for the selected environment."
             exit 1
           fi
       - name: "Terraform Init"
