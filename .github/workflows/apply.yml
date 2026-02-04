@@ -29,6 +29,8 @@ jobs:
       AWS_ACCESS_KEY_ID: "${{ secrets.SPACES_ACCESS_KEY_ID }}"
       AWS_SECRET_ACCESS_KEY: "${{ secrets.SPACES_SECRET_ACCESS_KEY }}"
       AWS_REGION: "us-east-1"
+      AWS_DEFAULT_REGION: "us-east-1"
+      AWS_EC2_METADATA_DISABLED: "true"
     defaults:
       run:
         working-directory: "environments/${{ inputs.environment }}"
@@ -47,6 +49,13 @@ jobs:
           name: "tfplan-${{ inputs.environment }}"
           run-id: "${{ inputs.plan_run_id }}"
           path: "environments/${{ inputs.environment }}"
+
+      - name: "Verify Backend Credentials"
+        run: |
+          if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ -z "${AWS_SECRET_ACCESS_KEY}" ]; then
+            echo "Missing AWS credentials for the S3 backend. Ensure SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY are set as secrets for the selected environment."
+            exit 1
+          fi
 
       - name: "Terraform Init"
         run: "terraform init -input=false"
