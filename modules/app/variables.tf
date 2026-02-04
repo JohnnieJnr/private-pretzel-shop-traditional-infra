@@ -37,3 +37,15 @@ variable "ghcr_credentials" {
   type        = string
   sensitive = true
 }
+
+variable "domain" {
+  description = "The domain for the application"
+  type        = string
+  default = ""
+  validation {
+    condition = (
+      var.domain == "" || can(regex("^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,63}$", var.domain))
+    )
+    error_message = "The domain must be a valid FQDN."
+  }
+}

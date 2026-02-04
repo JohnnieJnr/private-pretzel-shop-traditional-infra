@@ -3,6 +3,16 @@ spec {
     name   = var.app_name
     region = var.region
 
+    dynamic "domain" {
+      for_each = var.domain != "" ? [1] : []
+      content {
+        name = var.domain
+        type = "PRIMARY"
+        wildcard = false
+        zone = var.domain
+      }   
+    }
+
     service {
         name               = "backend"
         instance_count     = 1
