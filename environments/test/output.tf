@@ -1,6 +1,6 @@
 output "project_id" {
   description = "Id of the project"
-  value = digitalocean_project.this.id  
+  value       = digitalocean_project.this.id
 }
 
 # output "redis_uri" {

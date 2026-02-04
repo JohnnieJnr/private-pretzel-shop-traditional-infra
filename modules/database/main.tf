@@ -46,4 +46,11 @@ resource "digitalocean_database_cluster" "postgres" {
   tags = var.tags
   
   project_id = var.project_id
+
+  
+}
+
+data "digitalocean_database_ca" "ca" {
+  count = var.create_postgres ? 1 : 0
+  cluster_id = digitalocean_database_cluster.postgres[0].id
 }

@@ -7,18 +7,18 @@ variable "project_name" {
 variable "common_tags" {
   description = "Additional tags applied to all resources (key-value pairs)."
   type        = map(string)
-  default     = {
-  Project     = "pretzel-shop"
-  Environment = "staging"
-  Managedby   = "Terraform"
-  Team        = "devops"
+  default = {
+    Project     = "pretzel-shop"
+    Environment = "staging"
+    Managedby   = "Terraform"
+    Team        = "devops"
   }
 }
 
 variable "ghcr_credentials" {
   description = "Credentials for GHCR (GitHub Container Registry). Credentials should be in the format 'username:token'."
   type        = string
-  sensitive = true
+  sensitive   = true
 
   validation {
     condition     = can(regex("^[a-z0-9_]+:(github_pat_|ghp_)[A-Za-z0-9_]+$", var.ghcr_credentials))
