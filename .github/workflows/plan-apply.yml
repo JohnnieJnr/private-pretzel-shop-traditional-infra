@@ -54,11 +54,27 @@ jobs:
             echo "Missing DIGITALOCEAN_TOKEN. Ensure the secret is set for the selected environment."
             exit 1
           fi
+      - name: "Verify Production Domain"
+        if: "${{ inputs.environment == 'production' }}"
+        env:
+          DOMAIN: "${{ vars.DOMAIN }}"
+        run: |
+          if [ -z "${DOMAIN}" ]; then
+            echo "Missing DOMAIN for production. Set a GitHub environment variable named DOMAIN on the production environment."
+            exit 1
+          fi
 
       - name: "Terraform Init"
         run: "terraform init -input=false"
 
-      - name: "Terraform Plan"
+      - name: "Terraform Plan (test)"
+        if: "${{ inputs.environment != 'production' }}"
+        run: "terraform plan -input=false -out=tfplan"
+
+      - name: "Terraform Plan (production)"
+        if: "${{ inputs.environment == 'production' }}"
+        env:
+          TF_VAR_domain: "${{ vars.DOMAIN }}"
         run: "terraform plan -input=false -out=tfplan"
 
       - name: "Render Plan"
