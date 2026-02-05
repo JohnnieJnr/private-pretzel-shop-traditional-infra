@@ -51,13 +51,13 @@ spec {
             content {
                 key   = env.key
                 value = env.value
-                type = "SENSITIVE"
+                type = "SECRET"
             }
           }
         }
         database {
           name = "postgres"
-          engine = "POSTGRES"
+          engine = "PG"
           production = true
           cluster_name = var.postgres_cluster_name
         }
