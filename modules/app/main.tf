@@ -79,16 +79,6 @@ spec {
           }
         }
       }
-      rule {
-        component {
-          name = "frontend"
-        }
-        match {
-          path {
-            prefix = "/"
-          }
-        }
-      }
     }
 
     }
