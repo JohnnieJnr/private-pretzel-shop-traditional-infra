@@ -92,7 +92,7 @@ jobs:
           echo "Review the plan below before approving the environment gate." >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          cat "plan-artifact/environments/${{ inputs.environment }}/plan.txt" >> "$GITHUB_STEP_SUMMARY"
+          cat "plan-artifact/plan.txt" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   apply:
