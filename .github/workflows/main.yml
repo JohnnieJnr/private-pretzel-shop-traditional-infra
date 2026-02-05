@@ -83,6 +83,7 @@ jobs:
         run: |
           echo "## Terraform Plan (${{ matrix.environment }})" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Plan run ID: ${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
           echo "Artifact name: tfplan-${{ matrix.environment }}" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
@@ -97,3 +98,12 @@ jobs:
             environments/${{ matrix.environment }}/tfplan
             environments/${{ matrix.environment }}/plan.txt
           if-no-files-found: "error"
+
+  annotate:
+    name: "Annotate Run ID"
+    runs-on: "ubuntu-latest"
+    needs: "plan"
+    steps:
+      - name: "Post Workflow Run ID Annotation"
+        run: |
+          echo "::notice title=Terraform Plan Run ID::${{ github.run_id }}"

@@ -48,8 +48,27 @@ jobs:
         uses: "actions/github-script@v7"
         with:
           script: |
-            const inputRunId = `${{ inputs.plan_run_id }}`;
+            const inputRunId = `${{ inputs.plan_run_id }}`.trim();
+            const desiredArtifact = `tfplan-${{ inputs.environment }}`;
+
+            const hasArtifact = async (runId) => {
+              const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: Number(runId),
+                per_page: 100,
+              });
+              return data.artifacts.some((artifact) => artifact.name === desiredArtifact);
+            };
+
             if (inputRunId) {
+              const ok = await hasArtifact(inputRunId);
+              if (!ok) {
+                core.setFailed(
+                  `Run ${inputRunId} does not contain artifact '${desiredArtifact}'.`
+                );
+                return;
+              }
               core.setOutput("run_id", inputRunId);
               return;
             }
@@ -59,21 +78,23 @@ jobs:
               repo: context.repo.repo,
               workflow_id: "main.yml",
               branch: "main",
-              per_page: 10,
+              per_page: 20,
             });
 
-            const latestSuccess = data.workflow_runs.find(
-              (run) => run.conclusion === "success"
-            );
-
-            if (!latestSuccess) {
-              core.setFailed(
-                "No successful Terraform Plan runs found for main.yml on the main branch."
-              );
-              return;
+            for (const run of data.workflow_runs) {
+              if (run.conclusion !== "success") {
+                continue;
+              }
+              if (await hasArtifact(run.id)) {
+                core.setOutput("run_id", String(run.id));
+                return;
+              }
             }
 
-            core.setOutput("run_id", String(latestSuccess.id));
+            core.setFailed(
+              `No successful Terraform Plan runs found for main.yml on the main branch with artifact '${desiredArtifact}'.`
+            );
+
 
       - name: "Setup Terraform"
         uses: "hashicorp/setup-terraform@v3"
