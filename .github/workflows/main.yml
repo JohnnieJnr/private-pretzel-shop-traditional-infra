@@ -1,13 +1,10 @@
 name: "Terraform Plan"
-run-name: "Terraform Plan (${{ inputs.environment }})"
+run-name: "Terraform Plan (test + production)"
 
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Environment directory under environments/ (e.g., test, production)"
-        required: true
-        default: "test"
+  push:
+    branches:
+      - main
 
 permissions:
   contents: "read"
@@ -15,9 +12,15 @@ permissions:
 
 jobs:
   plan:
-    name: "Terraform Plan"
+    name: "Terraform Plan (${{ matrix.environment }})"
     runs-on: "ubuntu-latest"
-    environment: "${{ inputs.environment }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - test
+          - production
+    environment: "${{ matrix.environment }}"
     env:
       DIGITALOCEAN_TOKEN: "${{ secrets.DIGITALOCEAN_TOKEN }}"
       TF_VAR_digitalocean_token: "${{ secrets.DIGITALOCEAN_TOKEN }}"
@@ -31,7 +34,7 @@ jobs:
       AWS_EC2_METADATA_DISABLED: "true"
     defaults:
       run:
-        working-directory: "environments/${{ inputs.environment }}"
+        working-directory: "environments/${{ matrix.environment }}"
     steps:
       - name: "Checkout"
         uses: "actions/checkout@v4"
@@ -60,11 +63,21 @@ jobs:
       - name: "Render Plan"
         run: "terraform show -no-color tfplan > plan.txt"
 
+      - name: "Post Plan Summary"
+        run: |
+          echo "## Terraform Plan (${{ matrix.environment }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact name: tfplan-${{ matrix.environment }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat plan.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
       - name: "Upload Plan Artifact"
         uses: "actions/upload-artifact@v4"
         with:
-          name: "tfplan-${{ inputs.environment }}"
+          name: "tfplan-${{ matrix.environment }}"
           path: |
-            environments/${{ inputs.environment }}/tfplan
-            environments/${{ inputs.environment }}/plan.txt
+            environments/${{ matrix.environment }}/tfplan
+            environments/${{ matrix.environment }}/plan.txt
           if-no-files-found: "error"
