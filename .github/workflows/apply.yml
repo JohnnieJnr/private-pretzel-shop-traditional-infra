@@ -7,10 +7,14 @@ on:
       environment:
         description: "Environment directory under environments/ (e.g., test, production)"
         required: true
-        default: "test"
+        type: choice
+        options:
+          - test
+          - production
       plan_run_id:
         description: "Workflow run ID from the Terraform Plan workflow"
         required: true
+        type: string
 
 permissions:
   contents: "read"

@@ -1,0 +1,147 @@
+name: "Terraform Plan & Apply"
+run-name: "Terraform Plan & Apply (${{ inputs.environment }})"
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment directory under environments/ (e.g., test, production)"
+        required: true
+        type: choice
+        options:
+          - test
+          - production
+
+permissions:
+  contents: "read"
+  actions: "write"
+
+jobs:
+  plan:
+    name: "Terraform Plan"
+    runs-on: "ubuntu-latest"
+    environment: "${{ inputs.environment }}"
+    env:
+      DIGITALOCEAN_TOKEN: "${{ secrets.DIGITALOCEAN_TOKEN }}"
+      TF_VAR_digitalocean_token: "${{ secrets.DIGITALOCEAN_TOKEN }}"
+      TF_VAR_ghcr_credentials: "${{ secrets.GHCR_CREDENTIALS }}"
+      SPACES_ACCESS_KEY_ID: "${{ secrets.SPACES_ACCESS_KEY_ID }}"
+      SPACES_SECRET_ACCESS_KEY: "${{ secrets.SPACES_SECRET_ACCESS_KEY }}"
+      AWS_ACCESS_KEY_ID: "${{ secrets.SPACES_ACCESS_KEY_ID }}"
+      AWS_SECRET_ACCESS_KEY: "${{ secrets.SPACES_SECRET_ACCESS_KEY }}"
+      AWS_REGION: "us-east-1"
+      AWS_DEFAULT_REGION: "us-east-1"
+      AWS_EC2_METADATA_DISABLED: "true"
+    defaults:
+      run:
+        working-directory: "environments/${{ inputs.environment }}"
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+
+      - name: "Setup Terraform"
+        uses: "hashicorp/setup-terraform@v3"
+        with:
+          terraform_version: "1.13.5"
+
+      - name: "Verify Backend Credentials"
+        run: |
+          if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ -z "${AWS_SECRET_ACCESS_KEY}" ]; then
+            echo "Missing AWS credentials for the S3 backend. Ensure SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY are set as secrets for the selected environment."
+            exit 1
+          fi
+          if [ -z "${DIGITALOCEAN_TOKEN}" ]; then
+            echo "Missing DIGITALOCEAN_TOKEN. Ensure the secret is set for the selected environment."
+            exit 1
+          fi
+
+      - name: "Terraform Init"
+        run: "terraform init -input=false"
+
+      - name: "Terraform Plan"
+        run: "terraform plan -input=false -out=tfplan"
+
+      - name: "Render Plan"
+        run: "terraform show -no-color tfplan > plan.txt"
+
+      - name: "Upload Plan Artifact"
+        uses: "actions/upload-artifact@v4"
+        with:
+          name: "tfplan-${{ inputs.environment }}"
+          path: |
+            environments/${{ inputs.environment }}/tfplan
+            environments/${{ inputs.environment }}/plan.txt
+          if-no-files-found: "error"
+
+  review:
+    name: "Review"
+    runs-on: "ubuntu-latest"
+    needs: "plan"
+    environment: "${{ inputs.environment }}"
+    steps:
+      - name: "Download Plan Artifact"
+        uses: "actions/download-artifact@v4"
+        with:
+          name: "tfplan-${{ inputs.environment }}"
+          path: "plan-artifact"
+
+      - name: "Post Plan Summary"
+        run: |
+          echo "## Terraform Plan (${{ inputs.environment }})" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Review the plan below before approving the environment gate." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat "plan-artifact/environments/${{ inputs.environment }}/plan.txt" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    name: "Terraform Apply"
+    runs-on: "ubuntu-latest"
+    needs: "review"
+    environment: "${{ inputs.environment }}"
+    env:
+      DIGITALOCEAN_TOKEN: "${{ secrets.DIGITALOCEAN_TOKEN }}"
+      TF_VAR_digitalocean_token: "${{ secrets.DIGITALOCEAN_TOKEN }}"
+      TF_VAR_ghcr_credentials: "${{ secrets.GHCR_CREDENTIALS }}"
+      SPACES_ACCESS_KEY_ID: "${{ secrets.SPACES_ACCESS_KEY_ID }}"
+      SPACES_SECRET_ACCESS_KEY: "${{ secrets.SPACES_SECRET_ACCESS_KEY }}"
+      AWS_ACCESS_KEY_ID: "${{ secrets.SPACES_ACCESS_KEY_ID }}"
+      AWS_SECRET_ACCESS_KEY: "${{ secrets.SPACES_SECRET_ACCESS_KEY }}"
+      AWS_REGION: "us-east-1"
+      AWS_DEFAULT_REGION: "us-east-1"
+      AWS_EC2_METADATA_DISABLED: "true"
+    defaults:
+      run:
+        working-directory: "environments/${{ inputs.environment }}"
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+
+      - name: "Setup Terraform"
+        uses: "hashicorp/setup-terraform@v3"
+        with:
+          terraform_version: "1.13.5"
+
+      - name: "Download Plan Artifact"
+        uses: "actions/download-artifact@v4"
+        with:
+          name: "tfplan-${{ inputs.environment }}"
+          path: "environments/${{ inputs.environment }}"
+
+      - name: "Verify Backend Credentials"
+        run: |
+          if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ -z "${AWS_SECRET_ACCESS_KEY}" ]; then
+            echo "Missing AWS credentials for the S3 backend. Ensure SPACES_ACCESS_KEY_ID and SPACES_SECRET_ACCESS_KEY are set as secrets for the selected environment."
+            exit 1
+          fi
+          if [ -z "${DIGITALOCEAN_TOKEN}" ]; then
+            echo "Missing DIGITALOCEAN_TOKEN. Ensure the secret is set for the selected environment."
+            exit 1
+          fi
+
+      - name: "Terraform Init"
+        run: "terraform init -input=false"
+
+      - name: "Terraform Apply"
+        run: "terraform apply -input=false -auto-approve tfplan"
