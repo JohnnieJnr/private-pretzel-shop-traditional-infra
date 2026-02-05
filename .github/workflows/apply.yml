@@ -104,7 +104,9 @@ jobs:
       - name: "Download Plan Artifact"
         uses: "actions/download-artifact@v4"
         with:
-          run-id: "${{ inputs.run_id }}"
+          name: "tfplan-${{ inputs.environment }}"
+          run-id: "${{ steps.resolve_plan.outputs.run_id }}"
+          path: "."
       - name: "Verify Backend Credentials"
         run: |
           if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ -z "${AWS_SECRET_ACCESS_KEY}" ]; then
