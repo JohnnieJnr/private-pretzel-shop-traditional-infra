@@ -37,8 +37,8 @@ resource "digitalocean_database_cluster" "redis" {
 resource "digitalocean_database_cluster" "postgres" {
     count = var.create_postgres ? 1 : 0
   name       = var.cluster_name
-  engine     = "valkey"
-  version    = "8"
+  engine     = "pg"
+  version    = "15"
   size       = local.postgres_size[var.environment]
   region     = local.region
   node_count = local.postgres_node_count[var.environment]
@@ -53,4 +53,9 @@ resource "digitalocean_database_cluster" "postgres" {
 data "digitalocean_database_ca" "ca" {
   count = var.create_postgres ? 1 : 0
   cluster_id = digitalocean_database_cluster.postgres[0].id
+}
+
+data "digitalocean_database_ca" "redis_ca" {
+  count = var.create_redis ? 1 : 0
+  cluster_id = digitalocean_database_cluster.redis[0].id
 }

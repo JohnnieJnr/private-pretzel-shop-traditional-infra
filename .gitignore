@@ -13,6 +13,8 @@ override.tf.json
 .terraform.tfstate.lock.info
 terraform.tfvars
 environments/test/terraform.tfvars
+environments/production/terraform.tfvars
+
 .DS_Store
 
 # Sensitive

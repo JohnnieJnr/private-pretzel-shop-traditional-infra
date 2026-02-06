@@ -9,7 +9,7 @@ variable "common_tags" {
   type        = map(string)
   default = {
     Project     = "pretzel-shop"
-    Environment = "staging"
+    Environment = "production"
     Managedby   = "Terraform"
     Team        = "devops"
   }

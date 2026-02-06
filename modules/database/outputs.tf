@@ -47,6 +47,12 @@ output "redis_uri" {
   sensitive = true
 }
 
+output "redis_ca" {
+  description = "The CA certificate for the Redis/Valkey cluster."
+  value = length(data.digitalocean_database_ca.redis_ca) > 0 ? data.digitalocean_database_ca.redis_ca[0].certificate : null
+  sensitive = true
+}
+
 output "redis_private_uri" {
   description = "The private URI of the Redis cluster."
   value = length(digitalocean_database_cluster.redis) > 0 ? digitalocean_database_cluster.redis[0].private_uri : null
