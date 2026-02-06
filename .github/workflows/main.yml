@@ -11,6 +11,52 @@ permissions:
   actions: "write"
 
 jobs:
+  trivy-iac-test:
+    name: "Trivy IaC Scan (test)"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+
+      - name: "Trivy Scan (test environment)"
+        uses: "aquasecurity/trivy-action@0.20.0"
+        with:
+          scan-type: "config"
+          scan-ref: "environments/test"
+          severity: "HIGH,CRITICAL"
+          exit-code: "1"
+
+      - name: "Trivy Scan (shared modules)"
+        uses: "aquasecurity/trivy-action@0.20.0"
+        with:
+          scan-type: "config"
+          scan-ref: "modules"
+          severity: "HIGH,CRITICAL"
+          exit-code: "1"
+
+  trivy-iac-production:
+    name: "Trivy IaC Scan (production)"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+
+      - name: "Trivy Scan (production environment)"
+        uses: "aquasecurity/trivy-action@0.20.0"
+        with:
+          scan-type: "config"
+          scan-ref: "environments/production"
+          severity: "HIGH,CRITICAL"
+          exit-code: "1"
+
+      - name: "Trivy Scan (shared modules)"
+        uses: "aquasecurity/trivy-action@0.20.0"
+        with:
+          scan-type: "config"
+          scan-ref: "modules"
+          severity: "HIGH,CRITICAL"
+          exit-code: "1"
+
   plan:
     name: "Terraform Plan (${{ matrix.environment }})"
     runs-on: "ubuntu-latest"
