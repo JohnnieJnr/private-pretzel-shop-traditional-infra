@@ -11,51 +11,68 @@ permissions:
   actions: "write"
 
 jobs:
-  trivy-iac-test:
-    name: "Trivy IaC Scan (test)"
+  trivy-matrix:
+    name: "Build Trivy Matrix"
     runs-on: "ubuntu-latest"
+    outputs:
+      matrix: "${{ steps.build.outputs.matrix }}"
     steps:
       - name: "Checkout"
         uses: "actions/checkout@v4"
 
-      - name: "Trivy Scan (test environment)"
-        uses: "aquasecurity/trivy-action@0.20.0"
+      - name: "Setup Python"
+        uses: "actions/setup-python@v5"
         with:
-          scan-type: "config"
-          scan-ref: "environments/test"
-          severity: "HIGH,CRITICAL"
-          exit-code: "1"
+          python-version: "3.11"
 
-      - name: "Trivy Scan (shared modules)"
-        uses: "aquasecurity/trivy-action@0.20.0"
-        with:
-          scan-type: "config"
-          scan-ref: "modules"
-          severity: "HIGH,CRITICAL"
-          exit-code: "1"
+      - name: "Build Matrix"
+        id: "build"
+        run: |
+          matrix="$(python3 .github/utils/build_trivy_matrix.py)"
+          echo "matrix=${matrix}" >> "$GITHUB_OUTPUT"
+          echo "Matrix: ${matrix}"
 
-  trivy-iac-production:
-    name: "Trivy IaC Scan (production)"
+  trivy-iac:
+    name: "Trivy IaC Scan (${{ matrix.label }})"
     runs-on: "ubuntu-latest"
+    needs: "trivy-matrix"
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.trivy-matrix.outputs.matrix) }}
     steps:
       - name: "Checkout"
         uses: "actions/checkout@v4"
 
-      - name: "Trivy Scan (production environment)"
+      - name: "Trivy Scan (${{ matrix.scan_ref }})"
+        id: "trivy_scan"
         uses: "aquasecurity/trivy-action@0.20.0"
         with:
           scan-type: "config"
-          scan-ref: "environments/production"
+          scan-ref: "${{ matrix.scan_ref }}"
           severity: "HIGH,CRITICAL"
-          exit-code: "1"
+          format: "json"
+          output: "trivy-${{ matrix.kind }}-${{ matrix.name }}.json"
+          exit-code: "0"
 
-      - name: "Trivy Scan (shared modules)"
-        uses: "aquasecurity/trivy-action@0.20.0"
-        with:
-          scan-type: "config"
-          scan-ref: "modules"
-          severity: "HIGH,CRITICAL"
-          exit-code: "1"
+      - name: "Annotate Trivy Results (${{ matrix.scan_ref }})"
+        id: "trivy_results"
+        if: "always()"
+        run: |
+          report="trivy-${{ matrix.kind }}-${{ matrix.name }}.json"
+          count="$(jq '[.Results[]?.Misconfigurations[]?] | length' "${report}")"
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
+          if [ "${count}" -gt 0 ]; then
+            echo "::error title=Trivy IaC Violations::Directory ${{ matrix.scan_ref }} has ${count} HIGH/CRITICAL violations."
+          else
+            echo "::notice title=Trivy IaC Scan::Directory ${{ matrix.scan_ref }} has ${count} HIGH/CRITICAL violations."
+          fi
+
+      - name: "Fail on Trivy Violations"
+        if: "always()"
+        run: |
+          if [ "${{ steps.trivy_results.outputs.count }}" -gt 0 ]; then
+            exit 1
+          fi
 
   plan:
     name: "Terraform Plan (${{ matrix.environment }})"
