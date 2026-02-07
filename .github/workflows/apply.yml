@@ -121,7 +121,3 @@ jobs:
 
       - name: "Terraform Apply"
         run: "terraform apply -input=false -auto-approve"
-
-      - name: "Terraform destroy (Test Environment)"
-        if: inputs.environment == 'test'
-        run: "terraform destroy -input=false -auto-approve"
