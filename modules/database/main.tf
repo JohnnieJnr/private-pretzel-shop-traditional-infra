@@ -1,22 +1,22 @@
 locals {
   redis_node_count = {
     staging = 1
-    production = 2
+    production = 1
   }
   region = "sfo3"
 
   redis_size = {
     staging = "db-s-1vcpu-1gb"
-    production = "db-s-2vcpu-2gb"
+    production = "db-s-1vcpu-1gb"
   }
   postgres_node_count = {
     staging = 1
-    production = 2
+    production = 1
   }
 
   postgres_size = {
     staging = "db-s-1vcpu-1gb"
-    production = "db-s-2vcpu-2gb"
+    production = "db-s-1vcpu-1gb"
   }
 }
 
