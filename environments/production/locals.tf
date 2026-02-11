@@ -2,7 +2,7 @@ locals {
   tags        = [for k, v in var.common_tags : "${k}:${v}"]
   environment = "production"
   region      = "sfo3"
-  backend_end = {
+  backend_env = {
     PORT     = 3000
     NODE_ENV = "production"
     DB_HOST  = module.postgres.postgres_uri

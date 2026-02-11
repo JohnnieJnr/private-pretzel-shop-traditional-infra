@@ -1,7 +1,7 @@
-resource "digitalocean_app" "backend" {
+resource "digitalocean_app" "this" {
   spec {
     name   = var.app_name
-    region = var.region
+    region = substr(var.region, 0, length(var.region) - 1)
 
     dynamic "domain" {
       for_each = var.domain != "" ? [1] : []
@@ -62,7 +62,7 @@ resource "digitalocean_app" "backend" {
       }
 
       dynamic "env" {
-        for_each = var.backend_end
+        for_each = var.backend_env
         content {
           key   = env.key
           value = env.value
@@ -118,4 +118,8 @@ resource "digitalocean_app" "backend" {
   }
 
   project_id = var.project_id
+
 }
+data "digitalocean_app" "this" {
+      app_id = digitalocean_app.this.id
+    }

@@ -9,7 +9,7 @@ variable "region" {
   default     = "sfo3"
 }
 
-variable "backend_end" {
+variable "backend_env" {
   description = "Environment variables for the backend"
   type        = map(string)
 }
