@@ -2,7 +2,7 @@ locals {
   tags        = [for k, v in var.common_tags : "${k}:${v}"]
   environment = "staging"
   region      = "sfo3"
-  backend_end = {
+  backend_env = {
     PORT     = 3000
     NODE_ENV = "production"
     DB_HOST  = module.postgres.postgres_uri
@@ -16,7 +16,6 @@ locals {
   }
   backend_sensitive_env = {
     REDIS_URI   = module.redis.redis_uri
-    REDIS_CA    = module.redis.redis_ca
     DB_SSl_CA   = module.postgres.postgres_ca
     DB_SSL_CA   = module.postgres.postgres_ca
     PGSSLROOTCERT = module.postgres.postgres_ca
