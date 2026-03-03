@@ -27,7 +27,10 @@ output "postgres_port" {
 
 output "postgres_database" {
   description = "The name of the database cluster."
-  value = length(digitalocean_database_cluster.postgres) > 0 ? digitalocean_database_cluster.postgres[0].name : null
+  # DigitalOcean clusters expose the actual default database name via the `database` attribute
+  # (typically \"defaultdb\"), not the cluster `name`. Using `name` caused apps to look for a
+  # non-existent DB (e.g., \"pretzel-shop-staging-postgres\"). Export the real DB name instead.
+  value = length(digitalocean_database_cluster.postgres) > 0 ? digitalocean_database_cluster.postgres[0].database : null
 }
 
 output "postgres_password" {

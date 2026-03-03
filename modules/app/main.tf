@@ -12,7 +12,115 @@ resource "digitalocean_app" "this" {
         zone     = var.domain
       }
     }
+    
+    service {
+      name = "otel-collector"
+      instance_count = 1
+      instance_size_slug = "basic-xxs" 
+      image {
+        registry_type        = "GHCR"
+        registry             = "ghcr.io"
+        repository           = "johnniejnr/pretzel-shop-observability-otel"
+        tag                  = "latest"
+        registry_credentials = var.ghcr_credentials
+      }
 
+      internal_ports = [4317, 4318]
+
+    }
+
+    service {
+      name               = "tempo"
+      instance_count     = 1
+      instance_size_slug = "basic-xxs"
+      image {
+        registry_type        = "GHCR"
+        registry             = "ghcr.io"
+        repository           = "johnniejnr/pretzel-shop-observability-tempo"
+        tag                  = "latest"
+        registry_credentials = var.ghcr_credentials
+      }
+
+      http_port      = 3200
+      internal_ports = [4319, 4320]
+    }
+
+    service {
+      name               = "loki"
+      instance_count     = 1
+      instance_size_slug = "basic-xxs"
+      image {
+        registry_type        = "GHCR"
+        registry             = "ghcr.io"
+        repository           = "johnniejnr/pretzel-shop-observability-loki"
+        tag                  = "latest"
+        registry_credentials = var.ghcr_credentials
+      }
+
+      http_port = 3100
+    }
+
+    service {
+      name               = "prometheus"
+      instance_count     = 1
+      instance_size_slug = "basic-xxs"
+      image {
+        registry_type        = "GHCR"
+        registry             = "ghcr.io"
+        repository           = "johnniejnr/pretzel-shop-observability-prometheus"
+        tag                  = "latest"
+        registry_credentials = var.ghcr_credentials
+      }
+
+      http_port = 9090
+    }
+
+    service {
+      name               = "grafana"
+      instance_count     = 1
+      instance_size_slug = "basic-xxs"
+      image {
+        registry_type        = "GHCR"
+        registry             = "ghcr.io"
+        repository           = "johnniejnr/pretzel-shop-observability-grafana"
+        tag                  = "latest"
+        registry_credentials = var.ghcr_credentials
+      }
+
+      http_port = 3000
+
+      env {
+        key   = "GF_SECURITY_ADMIN_USER"
+        value = "admin"
+        type  = "GENERAL"
+      }
+
+      env {
+        key   = "GF_SECURITY_ADMIN_PASSWORD"
+        value = "admin"
+        type  = "GENERAL"
+      }
+
+      env {
+        key   = "GF_SERVER_DOMAIN"
+        value = var.domain
+        type  = "GENERAL"
+      }
+
+      env {
+        key   = "GF_SERVER_PROTOCOL"
+        value = "http"
+        type  = "GENERAL"
+      }
+
+      env {
+        key   = "GF_SERVER_ROOT_URL"
+        value = "https://${var.domain}/grafana/"
+        type  = "GENERAL"
+      }
+    }
+
+    # Frontend service
     service {
       name               = "frontend"
       instance_count     = 1
@@ -37,6 +145,8 @@ resource "digitalocean_app" "this" {
         failure_threshold     = 3
       }
     }
+ 
+    # Backend service
     service {
       name               = "backend"
       instance_count     = 1
@@ -68,6 +178,30 @@ resource "digitalocean_app" "this" {
           value = env.value
           type  = "GENERAL"
         }
+      }
+
+      env {
+        key   = "LOKI_URL"
+        value = "http://loki:3100"
+        type  = "GENERAL"
+      }
+
+      env {
+        key   = "LOKI_LABELS"
+        value = "env=staging"
+        type  = "GENERAL"
+      }
+
+      env {
+        key   = "OTEL_EXPORTER_OTLP_ENDPOINT"
+        value = "http://otel-collector:4318"
+        type  = "GENERAL"
+      }
+
+      env {
+        key   = "OTEL_SERVICE_NAME"
+        value = "${var.app_name}-backend"
+        type  = "GENERAL"
       }
 
       dynamic "env" {
@@ -106,6 +240,46 @@ resource "digitalocean_app" "this" {
       }
       rule {
         component {
+          name = "grafana"
+        }
+        match {
+          path {
+            prefix = "/grafana"
+          }
+        }
+      }
+      rule {
+        component {
+          name = "prometheus"
+        }
+        match {
+          path {
+            prefix = "/prometheus"
+          }
+        }
+      }
+      rule {
+        component {
+          name = "loki"
+        }
+        match {
+          path {
+            prefix = "/loki"
+          }
+        }
+      }
+      rule {
+        component {
+          name = "tempo"
+        }
+        match {
+          path {
+            prefix = "/tempo"
+          }
+        }
+      }
+      rule {
+        component {
           name = "frontend"
         }
         match {
@@ -120,6 +294,3 @@ resource "digitalocean_app" "this" {
   project_id = var.project_id
 
 }
-data "digitalocean_app" "this" {
-      app_id = digitalocean_app.this.id
-    }
