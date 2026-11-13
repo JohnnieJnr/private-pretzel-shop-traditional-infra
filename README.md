@@ -1,93 +1,82 @@
-# Private Pretzel Shop – Traditional Infra
+# Private Pretzel Shop – Traditional Infrastructure
 
-Terraform project for **DigitalOcean** with **test** and **prod** environments. Resources are split across multiple files in each environment (no shared modules).
+Terraform infrastructure for the Private Pretzel Shop on **DigitalOcean**. Environment configurations compose reusable modules instead of duplicating application and database resource definitions.
 
 ## Structure
 
 ```
 .
 ├── environments/
-│   ├── test/
-│   │   ├── main.tf            # Backend, provider, locals
-│   │   ├── variables.tf      # Input variables
-│   │   ├── outputs.tf         # Output values
-│   │   ├── data.tf            # Data sources
-│   │   ├── network.tf         # VPC
-│   │   ├── compute.tf         # Firewall (for droplets)
-│   │   ├── storage.tf        # Spaces bucket (S3-compatible)
-│   │   ├── terraform.tfvars   # Test variable values
-│   │   └── terraform.tfvars.example
-│   └── prod/
-│       ├── main.tf
-│       ├── variables.tf
-│       ├── outputs.tf
-│       ├── data.tf
-│       ├── network.tf
-│       ├── compute.tf
-│       ├── storage.tf
-│       └── terraform.tfvars   # Prod variable values
+│   ├── test/                 # Staging application environment
+│   ├── production/           # Production application environment
+│   └── shared-services/      # Shared DigitalOcean project
+├── modules/
+│   ├── app/                  # Reusable DigitalOcean App Platform application
+│   ├── database/             # Reusable PostgreSQL and Valkey cluster module
+│   └── prometheus/           # Reserved module for Prometheus infrastructure
 └── .terraform-version
+```
+
+Each directory under `environments/` is an independent Terraform root module with its own remote-state key. It creates the environment-specific DigitalOcean project and passes its environment values into modules under `modules/`.
+
+## Reusable modules
+
+| Module | Purpose | Used by |
+| --- | --- | --- |
+| `modules/app` | Creates the DigitalOcean App Platform application, including frontend, backend, and observability services. It receives environment configuration, database cluster names, project ID, and GHCR credentials. | `test`, `production` |
+| `modules/database` | Creates either a PostgreSQL cluster or a Valkey cluster and exposes connection details, CA certificates, and cluster names. | `test`, `production` |
+| `modules/prometheus` | Placeholder for Prometheus-specific infrastructure. | Not currently composed by an environment |
+
+The test and production roots invoke `database` twice—once for PostgreSQL and once for Valkey—then supply the resulting cluster names and connection details to the `app` module. Production additionally manages its custom DigitalOcean domain.
+
+To reuse a module in another environment, add a module block with a relative source, for example:
+
+```hcl
+module "postgres" {
+  source = "../../modules/database"
+
+  cluster_name    = "pretzel-shop-qa-postgres"
+  create_postgres = true
+  project_id      = digitalocean_project.this.id
+  environment     = "staging"
+  tags            = local.tags
+}
 ```
 
 ## Prerequisites
 
-- **DigitalOcean API token** – [Control Panel → API → Tokens](https://cloud.digitalocean.com/account/api/tokens)
-- **Spaces keys** (for creating/managing Spaces buckets) – [Control Panel → API → Spaces Keys](https://cloud.digitalocean.com/account/api/spaces). Set `SPACES_ACCESS_KEY_ID` and `SPACES_SECRET_ACCESS_KEY` in the environment, or configure the provider with `spaces_access_id` and `spaces_secret_key`.
+- Terraform 1.13 or later (see `.terraform-version`).
+- A DigitalOcean API token, provided as `DIGITALOCEAN_TOKEN`.
+- DigitalOcean Spaces access keys for the S3-compatible remote-state backend, provided as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+- GitHub Container Registry credentials in `username:token` form for application environments (`ghcr_credentials`).
 
 ## Usage
 
-1. Set the DigitalOcean token (avoid putting it in `terraform.tfvars` if the file is committed):
+1. Export the required credentials:
+
    ```bash
-   export TF_VAR_digitalocean_token="your-do-api-token"
-   ```
-   For Spaces, also set (or create keys in Control Panel):
-   ```bash
-   export SPACES_ACCESS_KEY_ID="your-spaces-key"
-   export SPACES_SECRET_ACCESS_KEY="your-spaces-secret"
+   export DIGITALOCEAN_TOKEN="your-do-api-token"
+   export AWS_ACCESS_KEY_ID="your-spaces-key"
+   export AWS_SECRET_ACCESS_KEY="your-spaces-secret"
    ```
 
-2. Configure variables in `environments/<env>/terraform.tfvars` (see `terraform.tfvars.example` in test).
+2. Set the environment inputs. Application environments require `ghcr_credentials`; production also requires `domain`. Supply them through a `terraform.tfvars` file or `TF_VAR_*` environment variables. Do not commit credentials.
 
-3. Apply an environment:
+3. Initialize and apply the chosen environment:
+
    ```bash
    cd environments/test
    terraform init
    terraform plan -out=tfplan
    terraform apply tfplan
    ```
-   For prod: `cd environments/prod` and run the same.
 
-## Backend
+   Replace `test` with `production` or `shared-services` as appropriate. The configured backend stores state in the `pretzel-shop-tfstate-bucket1` DigitalOcean Space under a separate key per environment.
 
-The project uses a **local** backend by default. DigitalOcean has no native Terraform state backend. For remote state you can use:
+## Adding infrastructure
 
-- **Terraform Cloud**
-- **S3-compatible backend** (e.g. store state in a DigitalOcean Space and use the AWS provider for the backend block)
+- Add reusable resource groups under `modules/<name>/`, defining their inputs in `variables.tf` and stable outputs in `outputs.tf`.
+- Compose a module from an environment root using `source = "../../modules/<name>"` and pass only environment-specific values.
+- Keep environment-only resources, backend configuration, provider configuration, and environment locals in `environments/<environment>/`.
 
-## Resources (DigitalOcean)
-
-| File        | Resources |
-|------------|-----------|
-| `network.tf` | `digitalocean_vpc` |
-| `compute.tf` | `digitalocean_firewall` (attach to droplets via `droplet_ids` when you add them) |
-| `storage.tf` | `digitalocean_spaces_bucket` (S3-compatible; versioning on for prod) |
-
-Variables: `region` is a DigitalOcean region slug (e.g. `nyc3`, `sfo3`, `sgp1`). `vpc_cidr` must be RFC1918 and between /16 and /24.
-
-## Adding variables
-
-1. Add the variable in **`environments/<env>/variables.tf`**.
-2. Set it in **`environments/<env>/terraform.tfvars`** (or `TF_VAR_*` env vars).
-3. Use it in any `.tf` file in that environment.
-
-## Adding outputs
-
-Add the output in **`environments/<env>/outputs.tf`**, referencing resources directly (e.g. `digitalocean_vpc.main.id`).
-
-## Splitting resources
-
-All `.tf` files in the same environment directory are merged. Add new resources in existing files (`network.tf`, `compute.tf`, `storage.tf`, `data.tf`) or new files (e.g. `droplet.tf`, `dns.tf`).
-
-## Terraform version
-
-See **`.terraform-version`** (e.g. for use with `tfenv` or your version manager).
+This separation lets application and database changes be made once in a module and consistently applied across environments.
